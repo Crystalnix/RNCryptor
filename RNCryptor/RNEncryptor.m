@@ -29,6 +29,9 @@
 #import "RNEncryptor.h"
 #import "RNCryptorEngine.h"
 
+NSString *SAEncryptionSaltKey = @"SAEncryptionSaltKey";
+NSString *SAInitVectorKey = @"SAInitVectorKey";
+
 @interface RNEncryptor ()
 @property (nonatomic, readwrite, strong) NSData *encryptionSalt;
 @property (nonatomic, readwrite, strong) NSData *HMACSalt;
@@ -70,8 +73,12 @@ const unsigned char IVBytes[] = {-39, -118, -90, 80, 29, 49, -27, 35, 58, 73, 88
 {
     self = [super initWithHandler:aHandler];
     if (self) {
-        //    self.IV = [[self class] randomDataOfLength:theSettings.IVSize];
-        self.IV = [NSData dataWithBytes:IVBytes length:theSettings.IVSize];
+        NSData *ivData = [[NSUserDefaults standardUserDefaults] dataForKey:SAInitVectorKey];
+        if (ivData != nil) {
+            self.IV = ivData;
+        } else {
+            self.IV = [NSData dataWithBytes:IVBytes length:theSettings.IVSize];
+        }
         if (anHMACKey) {
             CCHmacInit(&_HMACContext, theSettings.HMACAlgorithm, anHMACKey.bytes, anHMACKey.length);
             self.HMACLength = theSettings.HMACLength;
@@ -97,23 +104,24 @@ const unsigned char IVBytes[] = {-39, -118, -90, 80, 29, 49, -27, 35, 58, 73, 88
 {
     NSParameterAssert(aPassword != nil);
     
-    NSData *encryptionSalt = [NSData dataWithBytes:encSaltBytes length:theSettings.keySettings.saltSize];
-    //    NSData *encryptionSalt = [[self class] randomDataOfLength:theSettings.keySettings.saltSize];
+    NSData *encryptionSalt;
+    NSData *encSaltData = [[NSUserDefaults standardUserDefaults] dataForKey:SAEncryptionSaltKey];
+    if (encSaltData != nil) {
+        encryptionSalt = encSaltData;
+    } else {
+        encryptionSalt = [NSData dataWithBytes:encSaltBytes length:theSettings.keySettings.saltSize];
+    }
+
     NSData *encryptionKey = [[self class] keyForPassword:aPassword salt:encryptionSalt settings:theSettings.keySettings];
-    
-    //  NSData *HMACSalt = [[self class] randomDataOfLength:theSettings.HMACKeySettings.saltSize];
-    //  NSData *HMACKey = [[self class] keyForPassword:aPassword salt:HMACSalt settings:theSettings.HMACKeySettings];
     
     self = [self initWithSettings:theSettings
                     encryptionKey:encryptionKey
                           HMACKey:encryptionKey
-            //                        HMACKey:HMACKey
                           handler:aHandler];
     if (self) {
         self.options |= kRNCryptorOptionHasPassword;
         self.encryptionSalt = encryptionSalt;
         self.HMACSalt = encryptionSalt;
-        //    self.HMACSalt = HMACSalt;
     }
     return self;
 }

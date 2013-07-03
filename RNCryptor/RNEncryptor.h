@@ -27,6 +27,9 @@
 #import <Foundation/Foundation.h>
 #import "RNCryptor.h"
 
+extern NSString *SAEncryptionSaltKey;
+extern NSString *SAInitVectorKey;
+
 @interface RNEncryptor : RNCryptor
 - (RNEncryptor *)initWithSettings:(RNCryptorSettings)settings
                     encryptionKey:(NSData *)encryptionKey
