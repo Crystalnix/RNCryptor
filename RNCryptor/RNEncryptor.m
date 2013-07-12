@@ -28,9 +28,7 @@
 #import "RNCryptor+Private.h"
 #import "RNEncryptor.h"
 #import "RNCryptorEngine.h"
-
-NSString *SAEncryptionSaltKey = @"SAEncryptionSaltKey";
-NSString *SAInitVectorKey = @"SAInitVectorKey";
+#import "RNCryptor+Key.h"
 
 @interface RNEncryptor ()
 @property (nonatomic, readwrite, strong) NSData *encryptionSalt;
@@ -47,9 +45,6 @@ NSString *SAInitVectorKey = @"SAInitVectorKey";
 @synthesize HMACSalt = _HMACSalt;
 @synthesize IV = _IV;
 @synthesize haveWrittenHeader = _haveWrittenHeader;
-
-const unsigned char encSaltBytes[] = {66, 82, -101, 61, 55, -67, 96, 41};
-const unsigned char IVBytes[] = {-39, -118, -90, 80, 29, 49, -27, 35, 58, 73, 88, -94, -46, -95, -57, 67};
 
 
 + (NSData *)encryptData:(NSData *)thePlaintext withSettings:(RNCryptorSettings)theSettings password:(NSString *)aPassword error:(NSError **)anError
@@ -73,12 +68,7 @@ const unsigned char IVBytes[] = {-39, -118, -90, 80, 29, 49, -27, 35, 58, 73, 88
 {
     self = [super initWithHandler:aHandler];
     if (self) {
-        NSData *ivData = [[NSUserDefaults standardUserDefaults] dataForKey:SAInitVectorKey];
-        if (ivData != nil) {
-            self.IV = ivData;
-        } else {
-            self.IV = [NSData dataWithBytes:IVBytes length:theSettings.IVSize];
-        }
+        self.IV = [[NSUserDefaults standardUserDefaults] dataForKey:SAInitVectorKey];
         if (anHMACKey) {
             CCHmacInit(&_HMACContext, theSettings.HMACAlgorithm, anHMACKey.bytes, anHMACKey.length);
             self.HMACLength = theSettings.HMACLength;
@@ -104,24 +94,17 @@ const unsigned char IVBytes[] = {-39, -118, -90, 80, 29, 49, -27, 35, 58, 73, 88
 {
     NSParameterAssert(aPassword != nil);
     
-    NSData *encryptionSalt;
     NSData *encSaltData = [[NSUserDefaults standardUserDefaults] dataForKey:SAEncryptionSaltKey];
-    if (encSaltData != nil) {
-        encryptionSalt = encSaltData;
-    } else {
-        encryptionSalt = [NSData dataWithBytes:encSaltBytes length:theSettings.keySettings.saltSize];
-    }
+    NSData *encryptionKey = [RNCryptor getKey];
 
-    NSData *encryptionKey = [[self class] keyForPassword:aPassword salt:encryptionSalt settings:theSettings.keySettings];
-    
     self = [self initWithSettings:theSettings
                     encryptionKey:encryptionKey
                           HMACKey:encryptionKey
                           handler:aHandler];
     if (self) {
         self.options |= kRNCryptorOptionHasPassword;
-        self.encryptionSalt = encryptionSalt;
-        self.HMACSalt = encryptionSalt;
+        self.encryptionSalt = encSaltData;
+        self.HMACSalt = encSaltData;
     }
     return self;
 }

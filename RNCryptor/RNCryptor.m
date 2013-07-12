@@ -31,6 +31,9 @@
 NSString *const kRNCryptorErrorDomain = @"net.robnapier.RNCryptManager";
 const uint8_t kRNCryptorFileVersion = 2;
 
+NSString *SAEncryptionSaltKey = @"SAEncryptionSaltKey";
+NSString *SAInitVectorKey = @"SAInitVectorKey";
+
 // TODO: This is a slightly expensive solution, but it's convenient. May want to create a "walkable" data object
 @implementation NSMutableData (RNCryptor)
 - (NSData *)_RNConsumeToIndex:(NSUInteger)index
