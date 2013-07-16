@@ -28,6 +28,7 @@
 #import "RNCryptor+Private.h"
 #import "RNDecryptor.h"
 #import "RNCryptorEngine.h"
+#import "RNCryptor+Key.h"
 
 static const NSUInteger kPreambleSize = 2;
 
@@ -190,19 +191,29 @@ static const NSUInteger kPreambleSize = 2;
   [[data _RNConsumeToIndex:kPreambleSize] mutableCopy]; // Throw away the preamble
 
   NSError *error = nil;
-  if (self.options & kRNCryptorOptionHasPassword) {
-    NSAssert(!self.encryptionKey && !self.HMACKey, @"Both password and the key (%d) or HMACKey (%d) are set.", self.encryptionKey != nil, self.HMACKey != nil);
-
-    NSData *encryptionKeySalt = [data _RNConsumeToIndex:settings.keySettings.saltSize];
-    NSData *HMACKeySalt = [data _RNConsumeToIndex:settings.HMACKeySettings.saltSize];
-    self.encryptionKey = [[self class] keyForPassword:self.password salt:encryptionKeySalt settings:settings.keySettings];
-    self.HMACKey = [[self class] keyForPassword:self.password salt:HMACKeySalt settings:settings.HMACKeySettings];
-
-    self.password = nil;  // Don't need this anymore.
-  }
-
-  NSData *IV = [data _RNConsumeToIndex:settings.IVSize];
-
+    if (self.options & kRNCryptorOptionHasPassword) {
+        NSAssert(!self.encryptionKey && !self.HMACKey, @"Both password and the key (%d) or HMACKey (%d) are set.", self.encryptionKey != nil, self.HMACKey != nil);
+        NSData *saltFromUserDefaults = [[NSUserDefaults standardUserDefaults] objectForKey:SAEncryptionSaltKey];
+        NSData *encryptionSalt = [data _RNConsumeToIndex:settings.keySettings.saltSize];
+        NSData *HMACSalt = [data _RNConsumeToIndex:settings.HMACKeySettings.saltSize];
+        if (![saltFromUserDefaults isEqualToData:encryptionSalt]) {
+            self.encryptionKey = [[self class] keyForPassword:self.password salt:encryptionSalt settings:settings.keySettings];
+        } else {
+            self.encryptionKey = [RNCryptor getKey];
+        }
+        if (![HMACSalt isEqualToData:encryptionSalt]) {
+            self.HMACKey = [[self class] keyForPassword:self.password salt:HMACSalt settings:settings.keySettings];
+        } else {
+            self.HMACKey = self.encryptionKey;
+        }
+        self.password = nil;  // Don't need this anymore.
+    }
+    NSData *IV = [[NSUserDefaults standardUserDefaults] dataForKey:SAInitVectorKey];
+    NSData *IVfromDATA = [data _RNConsumeToIndex:settings.IVSize];
+    if (![IV isEqualToData:IVfromDATA]) {
+        IV = IVfromDATA;
+    }
+    
   self.engine = [[RNCryptorEngine alloc] initWithOperation:kCCDecrypt settings:settings key:self.encryptionKey IV:IV error:&error];
   self.encryptionKey = nil; // Don't need this anymore
   if (!self.engine) {

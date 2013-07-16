@@ -32,6 +32,9 @@
 extern NSString *const kRNCryptorErrorDomain;
 extern const uint8_t kRNCryptorFileVersion;
 
+extern NSString *SAEncryptionSaltKey;
+extern NSString *SAInitVectorKey;
+
 typedef struct _RNCryptorKeyDerivationSettings
 {
   size_t keySize;
